@@ -157,4 +157,17 @@ internal static class NativeMethods
         int cx,
         int cy,
         SetWindowPosFlags uFlags);
+
+    // --- System Idle Time Functions ---
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LASTINPUTINFO
+    {
+        public uint cbSize;
+        public uint dwTime; // Tick count of the last input event
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 }

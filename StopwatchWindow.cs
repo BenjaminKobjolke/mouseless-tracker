@@ -8,8 +8,11 @@ public class StopwatchWindow : Form
 {
     private readonly Stopwatch stopwatch;
     private System.Windows.Forms.Timer uiUpdateTimer;
+    private System.Windows.Forms.Timer idleCheckTimer; // Timer to check system idle state
     private Label timeLabel;
     private readonly IntPtr targetDeviceHandle; // Store the handle of the mouse to monitor
+    private const int IdleThresholdSeconds = 10; // Configurable idle time in seconds
+    private bool isPausedByIdle = false; // Track if paused specifically due to idle
 
     public StopwatchWindow(Stopwatch stopwatchInstance, IntPtr deviceHandleToMonitor)
     {
@@ -43,6 +46,12 @@ public class StopwatchWindow : Form
         this.uiUpdateTimer.Interval = 100; // Update 10 times per second for tenths
         this.uiUpdateTimer.Tick += UiUpdateTimer_Tick;
         this.uiUpdateTimer.Start();
+
+        // Idle Check Timer Properties
+        this.idleCheckTimer = new System.Windows.Forms.Timer();
+        this.idleCheckTimer.Interval = 1000; // Check every second
+        this.idleCheckTimer.Tick += IdleCheckTimer_Tick;
+        this.idleCheckTimer.Start();
 
         // Ensure stopwatch is running when window is created
         if (!this.stopwatch.IsRunning)
@@ -81,15 +90,66 @@ public class StopwatchWindow : Form
         this.timeLabel.Text = $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}.{(elapsed.Milliseconds / 100)}";
     }
 
-    // Public method to restart the stopwatch (called from WndProc)
+    // Public method to restart the stopwatch (called from WndProc when target mouse moves)
     public void RestartStopwatch()
     {
+        Console.WriteLine("RestartStopwatch called."); // Debug
         this.stopwatch.Restart();
-        // Optionally update label immediately on restart
+        this.isPausedByIdle = false; // Reset idle pause flag
+        // Update label immediately and ensure it looks 'active'
+        this.timeLabel.ForeColor = SystemColors.ControlText; // Reset color if changed
         UiUpdateTimer_Tick(null, EventArgs.Empty);
     }
 
-    // --- Raw Input Handling (Moved from Program.cs) ---
+    private void IdleCheckTimer_Tick(object? sender, EventArgs e)
+    {
+        var lastInputInfo = new NativeMethods.LASTINPUTINFO();
+        lastInputInfo.cbSize = (uint)Marshal.SizeOf(lastInputInfo);
+
+        if (NativeMethods.GetLastInputInfo(ref lastInputInfo))
+        {
+            // Calculate idle time in milliseconds
+            // Handle potential Environment.TickCount wrapping by using unchecked arithmetic
+            uint currentTimeTicks = unchecked((uint)Environment.TickCount);
+            uint lastInputTicks = lastInputInfo.dwTime;
+            uint idleTimeMs = unchecked(currentTimeTicks - lastInputTicks);
+
+            // Console.WriteLine($"Idle Time (ms): {idleTimeMs}"); // Debug output
+
+            if (idleTimeMs >= IdleThresholdSeconds * 1000)
+            {
+                // Idle threshold reached - PAUSE if running
+                if (this.stopwatch.IsRunning)
+                {
+                    Console.WriteLine($"System idle detected ({idleTimeMs}ms). Pausing stopwatch."); // Debug
+                    this.stopwatch.Stop();
+                    this.isPausedByIdle = true;
+                    // Optional: Indicate paused state visually
+                    this.timeLabel.ForeColor = SystemColors.GrayText;
+                }
+            }
+            else
+            {
+                // System is active - RESUME if paused *by idle*
+                if (!this.stopwatch.IsRunning && this.isPausedByIdle)
+                {
+                    Console.WriteLine($"System active again ({idleTimeMs}ms). Resuming stopwatch."); // Debug
+                    this.stopwatch.Start();
+                    this.isPausedByIdle = false;
+                    // Optional: Restore active visual state
+                    this.timeLabel.ForeColor = SystemColors.ControlText;
+                }
+            }
+        }
+        else
+        {
+            // Failed to get last input info - log warning?
+            Console.WriteLine("Warning: GetLastInputInfo failed.");
+        }
+    }
+
+
+    // --- Raw Input Handling ---
 
     protected override void OnHandleCreated(EventArgs e)
     {
@@ -146,7 +206,8 @@ public class StopwatchWindow : Form
                         // Check for actual movement (lLastX/lLastY are relative movements)
                         if (raw.mouse.lLastX != 0 || raw.mouse.lLastY != 0)
                         {
-                            // Physical mouse moved, restart the stopwatch
+                            // Physical mouse moved - *only* restart the stopwatch now.
+                            // Resuming from idle is handled by the idleCheckTimer.
                             Console.WriteLine($"[PHYSICAL] Target mouse moved ({raw.header.hDevice}) - Restarting stopwatch."); // Debug output
                             RestartStopwatch();
                         }
@@ -176,6 +237,8 @@ public class StopwatchWindow : Form
     {
         uiUpdateTimer?.Stop();
         uiUpdateTimer?.Dispose();
+        idleCheckTimer?.Stop(); // Stop the idle timer too
+        idleCheckTimer?.Dispose();
         base.OnFormClosing(e);
     }
 }
