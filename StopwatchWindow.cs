@@ -21,25 +21,41 @@ public class StopwatchWindow : Form
         InitializeComponent();
     }
 
+    private static readonly Color TransparentColor = Color.Black; // Color to make transparent
+    private bool isDragging = false; // Flag for dragging state
+    private Point dragStartPosition; // Point where dragging started
+    private bool isWindowActive = false; // Flag to track window focus for border painting
+
     private void InitializeComponent()
     {
         // Form Properties
         this.Text = "Mouseless Time";
         this.ClientSize = new Size(160, 50); // Adjusted size for better fit
-        this.FormBorderStyle = FormBorderStyle.FixedToolWindow; // Allows dragging, minimal chrome
-        this.StartPosition = FormStartPosition.Manual; // Allow setting position later if needed
-        // Place it somewhere reasonable initially, e.g., top-right
+        this.FormBorderStyle = FormBorderStyle.None; // Remove border and title bar
+        this.StartPosition = FormStartPosition.Manual; // We will load/save position
+        // Default position if none saved (will be set later in OnLoad)
         this.Location = new Point(Screen.PrimaryScreen.WorkingArea.Width - this.Width - 10, 10);
-        this.TopMost = true; // Always on top
+        this.TopMost = true; // Always on top (SetWindowPos will reinforce this)
         this.ShowInTaskbar = false; // Keep it less intrusive
+        this.BackColor = TransparentColor; // Set background color
+        this.TransparencyKey = TransparentColor; // Make this color transparent
 
         // Label Properties
         this.timeLabel = new Label();
-        this.timeLabel.Font = new Font("Consolas", 16F, FontStyle.Bold, GraphicsUnit.Point, 0); // Monospaced font, larger size
+        LoadAndApplyFontSettings(); // Load font from settings or use default
+        this.timeLabel.ForeColor = ColorTranslator.FromHtml("#15fc11"); // Set text color to custom green
+        this.timeLabel.BackColor = Color.Transparent; // Ensure label background is transparent
         this.timeLabel.TextAlign = ContentAlignment.MiddleCenter;
         this.timeLabel.Dock = DockStyle.Fill; // Fill the form
         this.timeLabel.Text = "00:00:00.0"; // Initial text with tenths
+        // Add mouse event handlers to the label for dragging
+        this.timeLabel.MouseDown += TimeLabel_MouseDown;
+        this.timeLabel.MouseMove += TimeLabel_MouseMove;
+        this.timeLabel.MouseUp += TimeLabel_MouseUp;
+        // Add Paint event for custom rendering
+        this.timeLabel.Paint += TimeLabel_Paint;
         this.Controls.Add(this.timeLabel);
+
 
         // Timer Properties
         this.uiUpdateTimer = new System.Windows.Forms.Timer();
@@ -58,10 +74,40 @@ public class StopwatchWindow : Form
         {
             this.stopwatch.Start();
         }
+
+        // Add handlers for focus changes
+        this.Activated += StopwatchWindow_Activated;
+        this.Deactivate += StopwatchWindow_Deactivate;
     }
 
     protected override void OnLoad(EventArgs e)
     {
+        // Load saved position before showing the form
+        Point? savedPosition = SettingsManager.LoadWindowPosition();
+        if (savedPosition.HasValue)
+        {
+            // Ensure the loaded position is visible on a screen
+            bool positionIsVisible = false;
+            foreach (Screen screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.Contains(savedPosition.Value))
+                {
+                    positionIsVisible = true;
+                    break;
+                }
+            }
+            if (positionIsVisible)
+            {
+                this.Location = savedPosition.Value;
+            }
+            else
+            {
+                Console.WriteLine("Saved position is off-screen. Using default.");
+                // Keep default position calculated in InitializeComponent
+            }
+        }
+        // else: Keep default position calculated in InitializeComponent
+
         base.OnLoad(e);
 
         // Explicitly set the window to be topmost using SetWindowPos
@@ -86,8 +132,8 @@ public class StopwatchWindow : Form
     {
         // Update label text, ensuring UI update is safe (Timer tick is already on UI thread)
         TimeSpan elapsed = this.stopwatch.Elapsed;
-        // Format with hours, minutes, seconds, and tenths of a second
-        this.timeLabel.Text = $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}.{(elapsed.Milliseconds / 100)}";
+        // Format with hours, minutes, and seconds only
+        this.timeLabel.Text = $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
     }
 
     // Public method to restart the stopwatch (called from WndProc when target mouse moves)
@@ -97,7 +143,7 @@ public class StopwatchWindow : Form
         this.stopwatch.Restart();
         this.isPausedByIdle = false; // Reset idle pause flag
         // Update label immediately and ensure it looks 'active'
-        this.timeLabel.ForeColor = SystemColors.ControlText; // Reset color if changed
+        this.timeLabel.ForeColor = ColorTranslator.FromHtml("#15fc11"); // Set text color to custom green
         UiUpdateTimer_Tick(null, EventArgs.Empty);
     }
 
@@ -137,7 +183,7 @@ public class StopwatchWindow : Form
                     this.stopwatch.Start();
                     this.isPausedByIdle = false;
                     // Optional: Restore active visual state
-                    this.timeLabel.ForeColor = SystemColors.ControlText;
+                    this.timeLabel.ForeColor = ColorTranslator.FromHtml("#15fc11"); // Set text color to custom green
                 }
             }
         }
@@ -235,10 +281,182 @@ public class StopwatchWindow : Form
     // Optional: Override OnFormClosing to stop the timer
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        // Save current position before closing
+        SettingsManager.SaveWindowPosition(this.Location);
+        // Save current font settings
+        SettingsManager.SaveFontSettings(this.timeLabel.Font.Name, this.timeLabel.Font.Size);
+
+
         uiUpdateTimer?.Stop();
         uiUpdateTimer?.Dispose();
         idleCheckTimer?.Stop(); // Stop the idle timer too
         idleCheckTimer?.Dispose();
         base.OnFormClosing(e);
     }
+
+    // --- Mouse Dragging Event Handlers ---
+
+    private void TimeLabel_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            isDragging = true;
+            // Store the starting position of the drag relative to the screen
+            dragStartPosition = this.PointToScreen(e.Location);
+            // Adjust slightly so the window doesn't jump; use current window location
+            // and mouse position relative to the window's top-left corner.
+            dragStartPosition.Offset(-this.Left, -this.Top);
+
+            // Attempt to explicitly set focus to the form when clicked
+            this.Focus();
+
+            Console.WriteLine("Dragging started. Attempted to set focus."); // Debug
+        }
+    }
+
+    private void TimeLabel_MouseMove(object? sender, MouseEventArgs e)
+    {
+        if (isDragging)
+        {
+            // Calculate new window position
+            Point currentScreenPos = this.PointToScreen(e.Location);
+            // Subtract the initial offset to get the new top-left corner
+            Point newLocation = Point.Subtract(currentScreenPos, new Size(dragStartPosition));
+
+            // Move the form
+            this.Location = newLocation;
+            // Console.WriteLine($"Dragging to: {this.Location}"); // Debug - can be noisy
+        }
+    }
+
+    private void TimeLabel_MouseUp(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            isDragging = false;
+            Console.WriteLine("Dragging stopped."); // Debug
+        }
+    }
+
+    // --- Keyboard Handling ---
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        const int SlowMoveStep = 1;  // Pixels for slow move (with Shift)
+        const int FastMoveStep = 100; // Pixels for fast move (without Shift)
+
+        // Check for modifier keys (Shift)
+        bool shiftPressed = (keyData & Keys.Shift) == Keys.Shift;
+        int moveStep = shiftPressed ? SlowMoveStep : FastMoveStep;
+
+        // Extract the base key code without modifiers
+        Keys keyCode = keyData & Keys.KeyCode;
+
+        switch (keyCode)
+        {
+            case Keys.Up:
+                this.Top -= moveStep;
+                Console.WriteLine($"Key Move Up ({moveStep}px) to: {this.Location}"); // Debug
+                return true; // Indicate key was processed
+            case Keys.Down:
+                this.Top += moveStep;
+                Console.WriteLine($"Key Move Down ({moveStep}px) to: {this.Location}"); // Debug
+                return true;
+            case Keys.Left:
+                this.Left -= moveStep;
+                Console.WriteLine($"Key Move Left ({moveStep}px) to: {this.Location}"); // Debug
+                return true;
+            case Keys.Right:
+                this.Left += moveStep;
+                Console.WriteLine($"Key Move Right ({moveStep}px) to: {this.Location}"); // Debug
+                return true;
+            case Keys.Escape:
+                // Escape doesn't usually have modifiers, but check base key code
+                Console.WriteLine("Escape key pressed. Closing window."); // Debug
+                this.Close();
+                return true;
+        }
+
+        // Call base class method for any other keys
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    // --- Helper Methods ---
+    private void LoadAndApplyFontSettings()
+    {
+        string defaultFontName = "Consolas";
+        float defaultFontSize = 16F;
+        FontStyle defaultFontStyle = FontStyle.Bold;
+
+        var (loadedName, loadedSize) = SettingsManager.LoadFontSettings();
+
+        string fontNameToUse = loadedName ?? defaultFontName;
+        float fontSizeToUse = loadedSize ?? defaultFontSize;
+
+        try
+        {
+            this.timeLabel.Font = new Font(fontNameToUse, fontSizeToUse, defaultFontStyle);
+            Console.WriteLine($"Applied font: {this.timeLabel.Font.Name}, Size: {this.timeLabel.Font.Size}"); // Debug
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error applying font '{fontNameToUse}' at size {fontSizeToUse}: {ex.Message}. Using default.");
+            // Fallback to default if loaded font fails
+            this.timeLabel.Font = new Font(defaultFontName, defaultFontSize, defaultFontStyle);
+        }
+    }
+
+    // --- Focus Handling ---
+    private void StopwatchWindow_Activated(object? sender, EventArgs e)
+    {
+        isWindowActive = true; // Set flag
+        this.timeLabel.ForeColor = ColorTranslator.FromHtml("#15fc11"); // Set text color to custom green
+        // this.timeLabel.BackColor = Color.DarkBlue; // Reverted temporary visual feedback
+        this.Invalidate(); // Trigger repaint to draw border
+        Console.WriteLine("activated"); // Restore console log
+    }
+
+    private void StopwatchWindow_Deactivate(object? sender, EventArgs e)
+    {
+        isWindowActive = false; // Clear flag
+        // this.timeLabel.BackColor = Color.Transparent; // Reverted temporary visual feedback
+        this.Invalidate(); // Trigger repaint to remove border
+        Console.WriteLine("deactivated"); // Restore console log
+    }
+
+    // --- Custom Font Rendering ---
+    private void TimeLabel_Paint(object? sender, PaintEventArgs e)
+    {
+        if (sender is Label label)
+        {
+            // Clear the background (important for transparency)
+            e.Graphics.Clear(TransparentColor);
+
+            // Set rendering quality - try AntiAliasGridFit or SingleBitPerPixelGridFit
+            // AntiAliasGridFit often looks better but might cause artifacts on transparent backgrounds.
+            // SingleBitPerPixelGridFit is less smooth but might avoid color issues.
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit; // Experiment here
+
+            // Use TextRenderer for better consistency with standard UI text
+            TextRenderer.DrawText(
+                e.Graphics,
+                label.Text,
+                label.Font,
+                label.ClientRectangle,
+                label.ForeColor,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); // Center text
+
+            // Draw border *after* text if the window is active
+            if (isWindowActive)
+            {
+                Rectangle borderRect = label.ClientRectangle; // Use label's client rect
+                borderRect.Width -= 1;  // Draw on the inside edge
+                borderRect.Height -= 1; // Draw on the inside edge
+                ControlPaint.DrawBorder(e.Graphics, borderRect, Color.White, ButtonBorderStyle.Solid);
+            }
+        }
+    }
+
+    // --- Custom Border Painting (Moved to TimeLabel_Paint) ---
+    // protected override void OnPaint(PaintEventArgs e) { ... } // Removed
 }
