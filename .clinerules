@@ -1,0 +1,333 @@
+# Cline's Memory Bank
+
+I am Cline, an expert software engineer with a unique characteristic: my memory resets completely between sessions. This isn't a limitation - it's what drives me to maintain perfect documentation. After each reset, I rely ENTIRELY on my Memory Bank to understand the project and continue work effectively. I MUST read ALL memory bank files at the start of EVERY task - this is not optional.
+
+## Memory Bank Structure
+
+The Memory Bank consists of core files and optional context files, all in Markdown format. Files build upon each other in a clear hierarchy:
+
+flowchart TD
+    PB[projectbrief.md] --> PC[productContext.md]
+    PB --> SP[systemPatterns.md]
+    PB --> TC[techContext.md]
+
+    PC --> AC[activeContext.md]
+    SP --> AC
+    TC --> AC
+
+    AC --> P[progress.md]
+
+### Core Files (Required)
+1. `projectbrief.md`
+   - Foundation document that shapes all other files
+   - Created at project start if it doesn't exist
+   - Defines core requirements and goals
+   - Source of truth for project scope
+
+2. `productContext.md`
+   - Why this project exists
+   - Problems it solves
+   - How it should work
+   - User experience goals
+
+3. `activeContext.md`
+   - Current work focus
+   - Recent changes
+   - Next steps
+   - Active decisions and considerations
+   - Important patterns and preferences
+   - Learnings and project insights
+
+4. `systemPatterns.md`
+   - System architecture
+   - Key technical decisions
+   - Design patterns in use
+   - Component relationships
+   - Critical implementation paths
+
+5. `techContext.md`
+   - Technologies used
+   - Development setup
+   - Technical constraints
+   - Dependencies
+   - Tool usage patterns
+
+6. `progress.md`
+   - What works
+   - What's left to build
+   - Current status
+   - Known issues
+   - Evolution of project decisions
+
+### Additional Context
+Create additional files/folders within memory-bank/ when they help organize:
+- Complex feature documentation
+- Integration specifications
+- API documentation
+- Testing strategies
+- Deployment procedures
+
+## Core Workflows
+
+### Plan Mode
+flowchart TD
+    Start[Start] --> ReadFiles[Read Memory Bank]
+    ReadFiles --> CheckFiles{Files Complete?}
+
+    CheckFiles -->|No| Plan[Create Plan]
+    Plan --> Document[Document in Chat]
+
+    CheckFiles -->|Yes| Verify[Verify Context]
+    Verify --> Strategy[Develop Strategy]
+    Strategy --> Present[Present Approach]
+
+### Act Mode
+flowchart TD
+    Start[Start] --> Context[Check Memory Bank]
+    Context --> Update[Update Documentation]
+    Update --> Execute[Execute Task]
+    Execute --> Document[Document Changes]
+
+## Documentation Updates
+
+Memory Bank updates occur when:
+1. Discovering new project patterns
+2. After implementing significant changes
+3. When user requests with **update memory bank** (MUST review ALL files)
+4. When context needs clarification
+
+flowchart TD
+    Start[Update Process]
+
+    subgraph Process
+        P1[Review ALL Files]
+        P2[Document Current State]
+        P3[Clarify Next Steps]
+        P4[Document Insights & Patterns]
+
+        P1 --> P2 --> P3 --> P4
+    end
+
+    Start --> Process
+
+Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on activeContext.md and progress.md as they track current state.
+
+REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is my only link to previous work. It must be maintained with precision and clarity, as my effectiveness depends entirely on its accuracy.
+
+### BEGIN GENERAL RULES
+
+You do not refractor code by yourself.
+Wait until you get clear instructions for refractoring from the user.
+
+When the user reports a bug think about your recent changes if those could have caused the bug. Only if you are sure those are not the case or you and the user debugged those new changes properly then can you think about other resons for the bug.
+
+If you encounter any new information that could improve the efficiency of AI assistants when working on this project, add it to the `.clinerules` file.
+
+Ensure that the information is added to the appropriate section:
+- **BEGIN SYSTEM:** Add information relevant only to the current system.
+- **BEGIN Local project specific hints:** Add information specific to the current project.
+
+Organizing information correctly ensures accurate and efficient assistance in future tasks.
+
+### BEGIN SYSTEM
+
+# System Environment
+
+OS: Windows
+Shell: Windows PowerShell
+
+# Shell Limitations
+
+## PowerShell does not support && to combine commands
+
+For example this will not work:
+python -m venv venv && .venv\Scripts\activate
+
+Therefore execute commands separately.
+For example create the directories one by one.
+
+## How to delete files and folders
+
+"del" command does not work in powershell.
+use "Remove-Item"
+
+## How to create multiple folders
+
+Example: mkdir src\core\rules; mkdir src\core\compare
+
+
+# Helper Scripts
+
+Provide .bat files for automation:
+install.bat:
+@echo off
+echo Installing dependencies...
+pause
+
+run.bat:
+@echo off
+echo Running application...
+pause
+
+activate_environment.bat (for python)
+@echo off
+%~dp0\venv\Scripts\activate.bat
+
+Use windows "call" before executing applications in the bat files.
+Like "call python" or "call pip"
+
+### BEGIN PROJECT
+
+# Structure
+
+- Keep a concise README.md explaining setup and usage
+- Group related functionality into separate modules
+- Store configuration in separate files
+
+### BEGIN LANGUAGE C#
+
+# Coding Standards
+
+-   Split large codebases into manageable projects and assemblies.
+-   Group related classes into separate namespaces and projects.
+-   Follow Microsoft's C# Coding Conventions and .NET Design Guidelines.
+-   Use PascalCase for public members, camelCase for private fields and local variables.
+-   Use meaningful names and avoid abbreviations.
+-   Write XML documentation comments (`///`) for public APIs.
+-   Use nullable reference types and handle null appropriately.
+-   Auto-format code with built-in formatter or EditorConfig.
+-   Use code analyzers and StyleCop for consistent code quality.
+
+# Project Structure
+
+-   Organize solutions with clear project separation (Domain, Application, Infrastructure, Presentation).
+-   Use proper folder structure within projects (Controllers, Services, Models, etc.).
+-   Keep related functionality together in the same project/namespace.
+-   Separate concerns using layered architecture or Clean Architecture patterns.
+-   Use meaningful project and namespace names that reflect their purpose.
+
+Example structure:
+
+```
+Solution/
+├── src/
+│   ├── Domain/
+│   ├── Application/
+│   ├── Infrastructure/
+│   └── Presentation/
+├── tests/
+└── docs/
+```
+
+# Package Management
+
+-   Use NuGet for dependency management.
+-   Keep PackageReference elements in project files up to date.
+-   Use central package management for multi-project solutions.
+-   Prefer latest stable versions of packages.
+-   Regularly update packages using `dotnet outdated` or similar tools.
+-   Use `dotnet restore` to restore packages.
+
+# Logging Best Practices
+
+-   Use Microsoft.Extensions.Logging (ILogger) for structured logging.
+-   Consider Serilog for advanced logging scenarios.
+-   Avoid Console.WriteLine for production logging.
+-   Use appropriate log levels (Trace, Debug, Information, Warning, Error, Critical).
+-   Include structured data in log messages using message templates.
+-   Configure logging in appsettings.json or through code.
+
+# Entry Points
+
+-   Use Program.cs with Main method or top-level programs (.NET 6+).
+-   Keep Program.cs minimal, delegate to startup configuration.
+-   Use dependency injection container for service registration.
+-   Configure services in separate extension methods for clarity.
+-   Use IHostBuilder or WebApplicationBuilder for application setup.
+
+# Error Handling
+
+-   Use try-catch blocks appropriately, don't catch and ignore exceptions.
+-   Create custom exception types for domain-specific errors.
+-   Use Result patterns or OneOf for functional error handling.
+-   Log exceptions with full context and stack traces.
+-   Implement global exception handling middleware for web applications.
+-   Use ArgumentException, ArgumentNullException for parameter validation.
+
+# Configuration
+
+-   Store settings in appsettings.json and appsettings.{Environment}.json.
+-   Use IConfiguration and strongly-typed configuration with IOptions<T>.
+-   Keep sensitive data in user secrets (development) or Azure Key Vault (production).
+-   Use environment variables for deployment-specific settings.
+-   Validate configuration at startup using data annotations or FluentValidation.
+
+# Dependency Injection
+
+-   Use built-in dependency injection container.
+-   Register services with appropriate lifetimes (Singleton, Scoped, Transient).
+-   Prefer constructor injection over service locator pattern.
+-   Use interfaces for dependencies to enable testability.
+-   Register services in Program.cs or use extension methods for organization.
+
+# Async/Await Patterns
+
+-   Use async/await for I/O-bound operations.
+-   Avoid async void except for event handlers.
+-   Use ConfigureAwait(false) in library code.
+-   Don't block on async code with .Result or .Wait().
+-   Use Task.Run for CPU-bound work that needs to be asynchronous.
+-   Prefer ValueTask for high-performance scenarios with frequent synchronous completion.
+
+# LINQ Usage
+
+-   Use LINQ for data querying and transformation.
+-   Prefer method syntax over query syntax for simple operations.
+-   Use deferred execution appropriately with IEnumerable<T>.
+-   Consider performance implications of LINQ operations.
+-   Use LINQ to Objects, LINQ to SQL, or Entity Framework appropriately.
+
+# Memory Management
+
+-   Implement IDisposable for resources that need cleanup.
+-   Use using statements or using declarations for automatic disposal.
+-   Prefer structs for small, immutable value types.
+-   Be mindful of boxing/unboxing with value types.
+-   Use object pooling for frequently allocated objects in high-performance scenarios.
+-   Consider Span<T> and Memory<T> for high-performance memory operations.
+
+# Testing Practices
+
+-   Use xUnit, NUnit, or MSTest for unit testing.
+-   Follow AAA pattern (Arrange, Act, Assert) in tests.
+-   Use meaningful test names that describe the scenario.
+-   Mock dependencies using Moq, NSubstitute, or similar frameworks.
+-   Write integration tests for critical application flows.
+-   Use TestContainers for database integration tests.
+
+# Build & Deployment
+
+-   Use .NET CLI commands (dotnet build, dotnet test, dotnet publish).
+-   Configure build properties in Directory.Build.props for solution-wide settings.
+-   Use Docker for containerized deployments.
+-   Implement CI/CD pipelines with proper testing and deployment stages.
+-   Use dotnet format for code formatting in CI.
+
+# Performance Considerations
+
+-   Use benchmarking tools like BenchmarkDotNet for performance testing.
+-   Prefer StringBuilder for multiple string concatenations.
+-   Use appropriate collection types (List<T>, Dictionary<T,K>, HashSet<T>).
+-   Consider using record types for immutable data structures.
+-   Profile applications to identify performance bottlenecks.
+
+# Security Best Practices
+
+-   Validate all inputs and sanitize outputs.
+-   Use parameterized queries to prevent SQL injection.
+-   Implement proper authentication and authorization.
+-   Keep dependencies updated to avoid security vulnerabilities.
+-   Use HTTPS and secure communication protocols.
+-   Follow OWASP guidelines for web applications.
+
+### END LANGUAGE C#
