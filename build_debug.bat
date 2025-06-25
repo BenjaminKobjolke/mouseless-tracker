@@ -1,0 +1,1 @@
+dotnet build mouseless-tracker.sln

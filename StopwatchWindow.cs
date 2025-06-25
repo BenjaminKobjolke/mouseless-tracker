@@ -11,13 +11,14 @@ public class StopwatchWindow : Form
     private System.Windows.Forms.Timer idleCheckTimer; // Timer to check system idle state
     private Label timeLabel;
     private readonly IntPtr targetDeviceHandle; // Store the handle of the mouse to monitor
-    private const int IdleThresholdSeconds = 10; // Configurable idle time in seconds
+    private readonly int idleThresholdSeconds; // Configurable idle time in seconds
     private bool isPausedByIdle = false; // Track if paused specifically due to idle
 
     public StopwatchWindow(Stopwatch stopwatchInstance, IntPtr deviceHandleToMonitor)
     {
         this.stopwatch = stopwatchInstance;
         this.targetDeviceHandle = deviceHandleToMonitor; // Receive the specific handle
+        this.idleThresholdSeconds = SettingsManager.LoadIdleThreshold(); // Load configurable idle threshold
         InitializeComponent();
     }
 
@@ -162,7 +163,7 @@ public class StopwatchWindow : Form
 
             // Console.WriteLine($"Idle Time (ms): {idleTimeMs}"); // Debug output
 
-            if (idleTimeMs >= IdleThresholdSeconds * 1000)
+            if (idleTimeMs >= idleThresholdSeconds * 1000)
             {
                 // Idle threshold reached - PAUSE if running
                 if (this.stopwatch.IsRunning)

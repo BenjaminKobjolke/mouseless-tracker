@@ -12,6 +12,7 @@ internal static class SettingsManager
     private const string WindowPosYKey = "WindowPosY";
     private const string FontNameKey = "FontName"; // New key for Font Name
     private const string FontSizeKey = "FontSize"; // New key for Font Size
+    private const string IdleThresholdKey = "IdleThresholdSeconds"; // New key for Idle Threshold
     private const int MaxIniValueSize = 255; // Standard max size for GetPrivateProfileString buffer
 
     public static void SaveSelectedDevice(string deviceName)
@@ -93,5 +94,27 @@ internal static class SettingsManager
         }
 
         return (name, size);
+    }
+
+    public static void SaveIdleThreshold(int seconds)
+    {
+        WriteSetting(IdleThresholdKey, seconds.ToString());
+        Console.WriteLine($"Saved idle threshold: {seconds} seconds"); // Debug
+    }
+
+    public static int LoadIdleThreshold()
+    {
+        string thresholdStr = ReadSetting(IdleThresholdKey);
+
+        if (int.TryParse(thresholdStr, out int threshold) && threshold > 0)
+        {
+            Console.WriteLine($"Loaded idle threshold: {threshold} seconds"); // Debug
+            return threshold;
+        }
+        else
+        {
+            Console.WriteLine("No valid idle threshold found in settings. Using default: 10 seconds"); // Debug
+            return 10; // Default to 10 seconds if not found or invalid
+        }
     }
 }
