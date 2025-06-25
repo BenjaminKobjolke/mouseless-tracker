@@ -7,6 +7,7 @@ A Windows application that tracks how long you haven't used your mouse, encourag
 -   **Real-time Tracking**: Shows a small, always-on-top stopwatch displaying time since last mouse movement
 -   **Device-Specific Monitoring**: Tracks a specific physical mouse device, ignoring virtual mice and other input devices
 -   **Configurable Idle Detection**: Automatically pauses tracking when the system is idle (configurable threshold)
+-   **Session Logging**: Optional SQLite database logging of mouseless sessions with application context
 -   **Persistent Settings**: Remembers window position, font preferences, and selected mouse device
 -   **Lightweight & Unobtrusive**: Minimal system resources, transparent background, draggable window
 
@@ -36,6 +37,35 @@ To change when the tracker pauses due to system inactivity:
 2. Edit `settings.ini` in the application directory
 3. Change `IdleThresholdSeconds` to your desired value (in seconds)
 4. Restart the application
+
+### Session Logging
+
+The application can optionally log mouseless sessions to a SQLite database (`database.db`) for analysis:
+
+```ini
+[Settings]
+; Session logging to SQLite database (disabled by default)
+LoggingEnabled=true
+```
+
+**Logged Data:**
+
+-   Session duration (in seconds)
+-   Timestamp of when mouse was moved
+-   Active application executable name
+-   Active window title
+
+**Requirements:**
+
+-   Sessions must be at least 10 seconds long to be logged
+-   Logging is disabled by default for privacy
+-   Database file is created automatically when first enabled
+
+**Privacy Notes:**
+
+-   All data is stored locally in `database.db`
+-   No network communication or data transmission
+-   Can be disabled at any time by setting `LoggingEnabled=false`
 
 ## Building
 

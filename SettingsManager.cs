@@ -13,6 +13,7 @@ internal static class SettingsManager
     private const string FontNameKey = "FontName"; // New key for Font Name
     private const string FontSizeKey = "FontSize"; // New key for Font Size
     private const string IdleThresholdKey = "IdleThresholdSeconds"; // New key for Idle Threshold
+    private const string LoggingEnabledKey = "LoggingEnabled"; // New key for Session Logging
     private const int MaxIniValueSize = 255; // Standard max size for GetPrivateProfileString buffer
 
     public static void SaveSelectedDevice(string deviceName)
@@ -115,6 +116,28 @@ internal static class SettingsManager
         {
             Console.WriteLine("No valid idle threshold found in settings. Using default: 10 seconds"); // Debug
             return 10; // Default to 10 seconds if not found or invalid
+        }
+    }
+
+    public static void SaveLoggingEnabled(bool enabled)
+    {
+        WriteSetting(LoggingEnabledKey, enabled.ToString().ToLowerInvariant());
+        Console.WriteLine($"Saved logging enabled: {enabled}"); // Debug
+    }
+
+    public static bool LoadLoggingEnabled()
+    {
+        string enabledStr = ReadSetting(LoggingEnabledKey);
+
+        if (bool.TryParse(enabledStr, out bool enabled))
+        {
+            Console.WriteLine($"Loaded logging enabled: {enabled}"); // Debug
+            return enabled;
+        }
+        else
+        {
+            Console.WriteLine("No valid logging enabled setting found. Using default: false"); // Debug
+            return false; // Default to disabled if not found or invalid
         }
     }
 }

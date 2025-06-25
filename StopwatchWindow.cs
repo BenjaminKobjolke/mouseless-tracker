@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 public class StopwatchWindow : Form
@@ -19,6 +20,10 @@ public class StopwatchWindow : Form
         this.stopwatch = stopwatchInstance;
         this.targetDeviceHandle = deviceHandleToMonitor; // Receive the specific handle
         this.idleThresholdSeconds = SettingsManager.LoadIdleThreshold(); // Load configurable idle threshold
+
+        // Initialize database for session logging
+        SessionLogger.InitializeDatabase();
+
         InitializeComponent();
     }
 
@@ -141,6 +146,14 @@ public class StopwatchWindow : Form
     public void RestartStopwatch()
     {
         Console.WriteLine("RestartStopwatch called."); // Debug
+
+        // Log the current session before restarting (async, non-blocking)
+        if (this.stopwatch.IsRunning)
+        {
+            int sessionDurationSeconds = (int)this.stopwatch.Elapsed.TotalSeconds;
+            _ = Task.Run(async () => await SessionLogger.LogSessionAsync(sessionDurationSeconds));
+        }
+
         this.stopwatch.Restart();
         this.isPausedByIdle = false; // Reset idle pause flag
         // Update label immediately and ensure it looks 'active'
